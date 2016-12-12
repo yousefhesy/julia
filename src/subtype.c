@@ -552,6 +552,7 @@ static int subtype_tuple(jl_datatype_t *xd, jl_datatype_t *yd, jl_stenv_t *e, in
     size_t i=0, j=0;
     int vx=0, vy=0, vvx = (lx > 0 && jl_is_vararg_type(jl_tparam(xd, lx-1)));
     param = (param == 0 ? 1 : param);
+    jl_value_t *lastx=NULL, *lasty=NULL;
     while (i < lx) {
         if (j >= ly) return 0;
         jl_value_t *xi = jl_tparam(xd, i), *yi = jl_tparam(yd, j);
@@ -566,13 +567,19 @@ static int subtype_tuple(jl_datatype_t *xd, jl_datatype_t *yd, jl_stenv_t *e, in
                 yi = ((jl_tvar_t*)yi)->ub;
             if (!vvx && yi == (jl_value_t*)jl_any_type)
                 break;  // if y ends in `Vararg{Any}` skip checking everything
-            if (!subtype(xi, yi, e, param))
+        }
+        if (xi == lastx && yi == lasty && !jl_has_free_typevars(xi) && !jl_has_free_typevars(yi)) {
+            // fast path for repeated elements
+        }
+        else if (e->Runions.depth == 0 && e->Lunions.depth == 0 && !jl_has_free_typevars(xi) && !jl_has_free_typevars(yi)) {
+            // fast path for separable sub-formulas
+            if (!jl_subtype(xi, yi))
                 return 0;
         }
-        else {
-            if (!subtype(xi, yi, e, param))
-                return 0;
+        else if (!subtype(xi, yi, e, param)) {
+            return 0;
         }
+        lastx = xi; lasty = yi;
         i++;
         if (j < ly-1 || !vy)
             j++;
@@ -625,6 +632,8 @@ static int subtype(jl_value_t *x, jl_value_t *y, jl_stenv_t *e, int param)
     }
     if (jl_is_typevar(y))
         return var_gt((jl_tvar_t*)y, x, e, param);
+    if (y == (jl_value_t*)jl_any_type && !jl_has_free_typevars(x))
+        return 1;
     if (jl_is_uniontype(x)) {
         if (x == y) return 1;
         if (param == 2) {

@@ -298,6 +298,8 @@ convert{Tv}(::Type{SparseVector}, s::AbstractVector{Tv}) =
 
 
 # convert between different types of SparseVector
+convert{Tv}(::Type{SparseVector{Tv}}, s::SparseVector{Tv}) = s
+convert{Tv,Ti}(::Type{SparseVector{Tv,Ti}}, s::SparseVector{Tv,Ti}) = s
 convert{Tv,Ti,TvS,TiS}(::Type{SparseVector{Tv,Ti}}, s::SparseVector{TvS,TiS}) =
     SparseVector{Tv,Ti}(s.n, convert(Vector{Ti}, s.nzind), convert(Vector{Tv}, s.nzval))
 

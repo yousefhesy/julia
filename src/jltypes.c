@@ -1634,13 +1634,22 @@ static int type_morespecific_(jl_value_t *a, jl_value_t *b, int invariant, jl_ty
                         return 1;
                 }
                 assert(jl_nparams(tta) == jl_nparams(ttb));
+                int ascore=0, bscore=0, ascore1=0, bscore1=0;
                 for(i=0; i < jl_nparams(tta); i++) {
                     jl_value_t *apara = jl_tparam(tta,i);
                     jl_value_t *bpara = jl_tparam(ttb,i);
-                    if (!type_morespecific_(apara, bpara, 1, env))
-                        return 0;
+                    ascore += type_morespecific_(apara, bpara, 1, env);
+                    bscore += type_morespecific_(bpara, apara, 1, env);
+                    if (jl_is_typevar(bpara) && !jl_is_typevar(apara) && !jl_is_type(apara))
+                        ascore1 += 1;
+                    if (jl_is_typevar(apara) && !jl_is_typevar(bpara) && !jl_is_type(bpara))
+                        bscore1 += 1;
                 }
-                return 1;
+                if (bscore1 == 0 && ascore1 > 0)
+                    return 1;
+                if (ascore1 == 0 && bscore1 > 0)
+                    return 0;
+                return ascore == jl_nparams(tta);
             }
             else if (invariant) {
                 return 0;
